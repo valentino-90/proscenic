@@ -1,0 +1,7 @@
+{
+  "name": "Proscenic Vacuum Cleaner",
+  "domains": [ "vacuum"],
+  "country": ["IT", "AT"],
+  "iot_class": "Local Polling",
+  "homeassistant": "0.109.0"
+}

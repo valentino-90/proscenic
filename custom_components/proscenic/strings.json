@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Proscenic",
+        "description": "Inserisci device_id e local_key. Host è opzionale (auto-discovery LAN).",
+        "data": {
+          "device_id": "Device ID",
+          "local_key": "Local key",
+          "host": "Host (IP)",
+          "name": "Name"
+        }
+      }
+    },
+    "error": {
+      "cannot_discover_ip": "Unable to discover the device IP on LAN. Enter host manually."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Proscenic options",
+        "data": {
+          "scan_interval": "Scan interval (seconds)",
+          "remember_fan_speed": "Restore fan speed after mode change",
+          "show_raw_dps": "Expose Raw DPS diagnostic sensor",
+          "auto_discover_ip": "Auto-discover IP on failures"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery": { "name": "Battery" },
+      "cleaned_area": { "name": "Cleaned area" },
+      "cleaning_time": { "name": "Cleaning time" },
+      "filter_health": { "name": "Filter health" },
+      "side_brush_health": { "name": "Side brush health" },
+      "brush_health": { "name": "Brush health" },
+      "sensor_health": { "name": "Sensor health" },
+      "raw_dps": { "name": "Raw DPS" }
+    },
+    "select": {
+      "water_speed": { "name": "Water speed" }
+    }
+  }
+}
