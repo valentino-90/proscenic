@@ -189,7 +189,8 @@ class ProscenicVacuum(CoordinatorEntity[ProscenicCoordinator], StateVacuumEntity
         if st.clean_area is not None:
             attrs["cleaned_area"] = st.clean_area
         if st.clean_time is not None:
-            attrs["cleaning_time"] = st.clean_time
+            attrs["cleaning_time_seconds"] = st.clean_time
+            attrs["cleaning_time_minutes"] = st.clean_time // 60
         if st.mop_equipped is not None:
             attrs["mop_equipped"] = st.mop_equipped
 

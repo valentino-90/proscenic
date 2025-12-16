@@ -106,13 +106,13 @@ class ProscenicCoordinator(DataUpdateCoordinator[ProscenicState]):
         v = get(DP_CLEAN_AREA)
         if v is not None:
             try:
-                st.clean_area = float(v)
+                st.clean_area = float(v) / 10.0
             except Exception:
                 st.clean_area = None
 
         v = get(DP_CLEAN_TIME)
         if v is not None:
-            st.clean_time = int(v)
+            st.clean_time = int(v) * 60
 
         v = get(DP_SWEEP_OR_MOP)
         if v is not None:

@@ -42,6 +42,7 @@ SPECS: tuple[ProscenicSensorSpec, ...] = (
             translation_key="cleaned_area",
             native_unit_of_measurement=UnitOfArea.SQUARE_METERS,
             state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=1,
         ),
         lambda st: st.clean_area,
     ),
@@ -51,8 +52,9 @@ SPECS: tuple[ProscenicSensorSpec, ...] = (
             translation_key="cleaning_time",
             native_unit_of_measurement=UnitOfTime.SECONDS,
             state_class=SensorStateClass.MEASUREMENT,
+            suggested_display_precision=0,
         ),
-        lambda st: st.clean_time,
+        lambda st: (st.clean_time // 60) if st.clean_time is not None else None,
     ),
     ProscenicSensorSpec(
         SensorEntityDescription(
