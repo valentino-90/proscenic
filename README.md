@@ -19,6 +19,7 @@ Once the component has been installed, you need to configure it in order to make
 First we need to find out the _device_id_, _local key_ of your proscenic vacuum cleaner.
 
 Use tuya-uncover
+
     git clone https://github.com/blakadder/tuya-uncover.git
     cd tuya-uncover
     pip install requests
