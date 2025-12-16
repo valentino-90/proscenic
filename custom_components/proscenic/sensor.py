@@ -50,7 +50,7 @@ SPECS: tuple[ProscenicSensorSpec, ...] = (
         SensorEntityDescription(
             key="cleaning_time",
             translation_key="cleaning_time",
-            native_unit_of_measurement=UnitOfTime.SECONDS,
+            native_unit_of_measurement=UnitOfTime.MINUTES,
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=0,
         ),

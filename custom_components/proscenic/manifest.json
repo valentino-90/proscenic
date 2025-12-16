@@ -4,7 +4,7 @@
   "documentation": "https://github.com/valentino-90/proscenic",
   "issue_tracker": "https://github.com/valentino-90/proscenic/issues",
   "codeowners": ["@valentino-90"],
-  "version": "1.0.1",
+  "version": "1.0.2",
   "config_flow": true,
   "iot_class": "local_polling",
   "requirements": ["tinytuya>=1.15.0"]
