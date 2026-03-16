@@ -13,6 +13,7 @@ from .const import (
     DP_BRUSH_HEALTH,
     DP_CLEAN_AREA,
     DP_CLEAN_TIME,
+    DP_CLEANING_MODE,
     DP_CURRENT_STATE,
     DP_DEVICE_MODEL,
     DP_FAULT,
@@ -36,6 +37,7 @@ class ProscenicState:
     current_state: Optional[int] = None
     fan_speed: Optional[str] = None
     water_speed: Optional[str] = None
+    cleaning_mode: Optional[str] = None
     clean_area: Optional[float] = None
     clean_time: Optional[int] = None
     mop_equipped: Optional[bool] = None
@@ -71,7 +73,6 @@ class ProscenicCoordinator(DataUpdateCoordinator[ProscenicState]):
                         return await self._fetch_once()
                     except Exception as exc2:
                         raise UpdateFailed(str(exc2)) from exc2
-
             raise UpdateFailed(str(exc)) from exc
 
     async def _fetch_once(self) -> ProscenicState:
@@ -103,6 +104,10 @@ class ProscenicCoordinator(DataUpdateCoordinator[ProscenicState]):
         if v is not None:
             st.water_speed = str(v)
 
+        v = get(DP_CLEANING_MODE)
+        if v is not None:
+            st.cleaning_mode = str(v)
+
         v = get(DP_CLEAN_AREA)
         if v is not None:
             try:
@@ -116,7 +121,7 @@ class ProscenicCoordinator(DataUpdateCoordinator[ProscenicState]):
 
         v = get(DP_SWEEP_OR_MOP)
         if v is not None:
-            st.mop_equipped = (str(v) != "sweep")
+            st.mop_equipped = str(v) != "sweep"
 
         v = get(DP_DEVICE_MODEL)
         if v is not None:

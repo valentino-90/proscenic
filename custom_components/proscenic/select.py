@@ -1,37 +1,56 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER, DP_WATER_SPEED
+from .const import DOMAIN, DP_CLEANING_MODE, DP_WATER_SPEED
 from .coordinator import ProscenicCoordinator
-
+from .entity import ProscenicEntity
 
 WATER_SPEED_OPTIONS = ["small", "medium", "Big"]
 
+CLEANING_MODE_OPTION_TO_DP = {
+    "none": "NONE",
+    "return_to_base": "chargego",
+    "auto": "smart",
+    "edge": "wallfollow",
+    "spot": "sprial",
+}
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
+CLEANING_MODE_DP_TO_OPTION = {v: k for k, v in CLEANING_MODE_OPTION_TO_DP.items()}
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator: ProscenicCoordinator = data["coordinator"]
-    async_add_entities([ProscenicWaterSpeed(entry, coordinator)], update_before_add=False)
+    device_id: str = entry.data["device_id"]
+
+    async_add_entities(
+        [
+            ProscenicWaterSpeed(coordinator, device_id),
+            ProscenicCleaningMode(coordinator, device_id),
+        ],
+        update_before_add=False,
+    )
 
 
-class ProscenicWaterSpeed(CoordinatorEntity[ProscenicCoordinator], SelectEntity):
-    _attr_has_entity_name = True
+class ProscenicWaterSpeed(ProscenicEntity, SelectEntity):
+    """Water speed selector."""
+
     _attr_translation_key = "water_speed"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_options = WATER_SPEED_OPTIONS
     _attr_icon = "mdi:water-percent"
 
-    def __init__(self, entry: ConfigEntry, coordinator: ProscenicCoordinator) -> None:
-        super().__init__(coordinator)
-        self._device_id = entry.data["device_id"]
-        self._attr_unique_id = f"{self._device_id}_water_speed"
+    def __init__(self, coordinator: ProscenicCoordinator, device_id: str) -> None:
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_water_speed"
 
     @property
     def current_option(self) -> Optional[str]:
@@ -44,11 +63,30 @@ class ProscenicWaterSpeed(CoordinatorEntity[ProscenicCoordinator], SelectEntity)
         await self.coordinator.api.set_dp(DP_WATER_SPEED, option)
         await self.coordinator.async_request_refresh()
 
+
+class ProscenicCleaningMode(ProscenicEntity, SelectEntity):
+    """Cleaning mode selector."""
+
+    _attr_translation_key = "cleaning_mode"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_options = list(CLEANING_MODE_OPTION_TO_DP.keys())
+    _attr_icon = "mdi:robot-vacuum"
+
+    def __init__(self, coordinator: ProscenicCoordinator, device_id: str) -> None:
+        super().__init__(coordinator, device_id)
+        self._attr_unique_id = f"{device_id}_cleaning_mode"
+
     @property
-    def device_info(self) -> dict[str, Any]:
-        model = self.coordinator.data.device_model if self.coordinator.data else None
-        return {
-            "identifiers": {(DOMAIN, self._device_id)},
-            "manufacturer": MANUFACTURER,
-            "model": model or "Proscenic",
-        }
+    def current_option(self) -> Optional[str]:
+        st = self.coordinator.data
+        if not st or not st.cleaning_mode:
+            return None
+        return CLEANING_MODE_DP_TO_OPTION.get(st.cleaning_mode, st.cleaning_mode)
+
+    async def async_select_option(self, option: str) -> None:
+        if option not in self.options:
+            raise ValueError(option)
+
+        dp_value = CLEANING_MODE_OPTION_TO_DP[option]
+        await self.coordinator.api.set_dp(DP_CLEANING_MODE, dp_value)
+        await self.coordinator.async_request_refresh()

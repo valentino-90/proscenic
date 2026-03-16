@@ -41,7 +41,17 @@
       "raw_dps": { "name": "Raw DPS" }
     },
     "select": {
-      "water_speed": { "name": "Water speed" }
+      "water_speed": { "name": "Water speed" },
+      "cleaning_mode": {
+        "name": "Cleaning mode",
+        "state": {
+          "none": "None",
+          "return_to_base": "Return to base",
+          "auto": "Auto",
+          "edge": "Edge",
+          "spot": "Spot"
+        }
+      }
     }
   }
 }

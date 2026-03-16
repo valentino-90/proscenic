@@ -11,17 +11,16 @@ from homeassistant.components.vacuum import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DOMAIN,
-    MANUFACTURER,
     DP_CLEANING_MODE,
     DP_DIRECTION_CONTROL,
     DP_FAN_SPEED,
     REMEMBER_FAN_SPEED_DELAY,
 )
 from .coordinator import ProscenicCoordinator, ProscenicState
+from .entity import ProscenicEntity
 
 
 class Fault(IntFlag):
@@ -110,49 +109,36 @@ SUPPORTED = (
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+) -> None:
     data = hass.data[DOMAIN][entry.entry_id]
     coordinator: ProscenicCoordinator = data["coordinator"]
     async_add_entities([ProscenicVacuum(coordinator, entry)], update_before_add=False)
 
 
-class ProscenicVacuum(CoordinatorEntity[ProscenicCoordinator], StateVacuumEntity):
+class ProscenicVacuum(ProscenicEntity, StateVacuumEntity):
     _attr_supported_features = SUPPORTED
 
     def __init__(self, coordinator: ProscenicCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator)
+        device_id: str = entry.data["device_id"]
+        super().__init__(coordinator, device_id)
         self._entry = entry
-        self._device_id: str = entry.data["device_id"]
         self._name: str = entry.title
-
         self._cmd_lock = asyncio.Lock()
-
         self._last_cleaning_mode: Optional[str] = None
         self._stored_fan_speed: Optional[str] = None
 
         self._attr_name = self._name
-        self._attr_unique_id = self._device_id
-
-    @property
-    def device_info(self) -> dict[str, Any]:
-        st: ProscenicState = self.coordinator.data
-        model = st.device_model if st and st.device_model else "Proscenic"
-        return {
-            "identifiers": {(DOMAIN, self._device_id)},
-            "manufacturer": MANUFACTURER,
-            "name": self._name,
-            "model": model,
-        }
+        self._attr_unique_id = device_id
 
     @property
     def activity(self) -> Optional[VacuumActivity]:
         st: ProscenicState = self.coordinator.data
         if not st:
             return None
-
         if st.fault is not None and st.fault != Fault.NO_ERROR:
             return VacuumActivity.ERROR
-
         return CurrentState.to_activity(st.current_state)
 
     @property
@@ -186,15 +172,19 @@ class ProscenicVacuum(CoordinatorEntity[ProscenicCoordinator], StateVacuumEntity
         if CurrentState.is_mopping(st.current_state):
             attrs["mode"] = "mopping"
 
+        if st.cleaning_mode is not None:
+            attrs["cleaning_mode"] = st.cleaning_mode
+
         if st.clean_area is not None:
             attrs["cleaned_area"] = st.clean_area
+
         if st.clean_time is not None:
             attrs["cleaning_time_seconds"] = st.clean_time
             attrs["cleaning_time_minutes"] = st.clean_time // 60
+
         if st.mop_equipped is not None:
             attrs["mop_equipped"] = st.mop_equipped
 
-        # Health values (diagnostic but useful)
         if st.sensor_health is not None:
             attrs["sensor_health"] = st.sensor_health
         if st.filter_health is not None:
@@ -206,7 +196,6 @@ class ProscenicVacuum(CoordinatorEntity[ProscenicCoordinator], StateVacuumEntity
         if st.reset_filter is not None:
             attrs["reset_filter"] = st.reset_filter
 
-        # Raw DPS only if option enabled
         domain_data = self.hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
         if domain_data.get("show_raw_dps", False):
             attrs["raw_dps"] = st.raw_dps
@@ -216,26 +205,42 @@ class ProscenicVacuum(CoordinatorEntity[ProscenicCoordinator], StateVacuumEntity
     async def async_start(self) -> None:
         async with self._cmd_lock:
             st: ProscenicState = self.coordinator.data
-            if st and st.current_state == CurrentState.PAUSE.value and self._last_cleaning_mode:
-                mode = self._last_cleaning_mode
+
+            if st and st.current_state == CurrentState.PAUSE.value:
+                if st.cleaning_mode:
+                    mode = st.cleaning_mode
+                elif self._last_cleaning_mode:
+                    mode = self._last_cleaning_mode
+                else:
+                    mode = CleaningMode.SMART.value
             else:
                 mode = CleaningMode.SMART.value
-                self._last_cleaning_mode = mode
 
+            self._last_cleaning_mode = mode
             await self.coordinator.api.set_dp(DP_CLEANING_MODE, mode)
             await self._maybe_restore_fan_speed_after_mode_change()
             await self.coordinator.async_request_refresh()
 
     async def async_pause(self) -> None:
-        # Per la tua logica originale: “pause” reinvia la modalità per togglare
         async with self._cmd_lock:
-            if self._last_cleaning_mode:
-                await self.coordinator.api.set_dp(DP_CLEANING_MODE, self._last_cleaning_mode)
-                await self.coordinator.async_request_refresh()
+            mode = None
+
+            st: ProscenicState = self.coordinator.data
+            if st and st.cleaning_mode:
+                mode = st.cleaning_mode
+            elif self._last_cleaning_mode:
+                mode = self._last_cleaning_mode
+
+            if mode:
+                await self.coordinator.api.set_dp(DP_CLEANING_MODE, mode)
+
+            await self.coordinator.async_request_refresh()
 
     async def async_stop(self, **kwargs) -> None:
         async with self._cmd_lock:
-            await self.coordinator.api.set_dp(DP_DIRECTION_CONTROL, DirectionControl.STOP.value)
+            await self.coordinator.api.set_dp(
+                DP_DIRECTION_CONTROL, DirectionControl.STOP.value
+            )
             self._last_cleaning_mode = None
             await self.coordinator.async_request_refresh()
 
@@ -255,7 +260,6 @@ class ProscenicVacuum(CoordinatorEntity[ProscenicCoordinator], StateVacuumEntity
 
     async def async_set_fan_speed(self, fan_speed: str, **kwargs) -> None:
         async with self._cmd_lock:
-            # validate
             try:
                 _ = FanSpeed(fan_speed)
             except Exception:
